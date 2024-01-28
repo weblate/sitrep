@@ -1,11 +1,13 @@
+import { icon } from "@fortawesome/fontawesome-svg-core";
 import bearing from "@turf/bearing";
 import { LineString, point } from "@turf/helpers";
-import { BabsIcon, IconGroups, Others, Schaeden } from "components/BabsIcons";
-import { Feature, GeoJsonProperties } from "geojson";
-import { isEmpty, isUndefined, omitBy } from "lodash";
+import { BabsIcon, IconGroups } from "components/BabsIcons";
+import { Feature, GeoJsonProperties, Geometry } from "geojson";
+import { isEmpty, isUndefined, map, omitBy } from "lodash";
 import { SetStateAction, memo, useCallback, useEffect, useState } from "react";
 import { CirclePicker } from "react-color";
-import { useMap } from "react-map-gl/maplibre";
+import { MapRef } from "react-map-gl/maplibre";
+import { useDraw, useDrawDispatch } from "./draw/Context";
 
 const calculateIconRotationForLines = (feature: Feature<LineString>): number => {
 
@@ -17,11 +19,8 @@ const calculateIconRotationForLines = (feature: Feature<LineString>): number => 
 }
 
 function FeatureDetail(props: { onUpdate: (e: any) => void, feature: Feature | undefined }) {
-    const map = useMap();
     const { feature, onUpdate } = props;
-    const [iconRotation, setIconRotation] = useState<number | undefined>(feature && feature.properties && (feature.properties.iconRotation));
     const [name, setName] = useState<string>((feature && feature.properties && feature.properties.name));
-    const [icon, setIcon] = useState<string>((feature && feature.properties && feature.properties.icon));
     const [iconEnd, setIconEnd] = useState<string | undefined>((feature && feature.properties && feature.properties.iconEnd));
     const [color, setColor] = useState<string>((feature && feature.properties && feature.properties.color));
     const [kind, setKind] = useState<string>((feature && feature.properties && ((feature.geometry.type === "LineString" || feature.geometry.type === "MultiLineString") ? feature.properties.lineType : feature.properties.zoneType)));
@@ -57,66 +56,34 @@ function FeatureDetail(props: { onUpdate: (e: any) => void, feature: Feature | u
             onUpdate({ features: [feature], action: "featureDetail" });
         }
         return () => onUpdate({ features: [feature] });
-    }, [onUpdate, feature, name, iconRotation, iconEnd, color, icon, kind]);
+    }, [onUpdate, feature, name, color, icon, kind]);
 
-    let selectableTypes: typeof LineTypes | typeof ZoneTypes | undefined = undefined;
+    let selectableTypes: typeof LineTypesMap | typeof ZoneTypesMap | undefined = undefined;
 
     if (feature?.geometry.type === "LineString" || feature?.geometry.type === "MultiLineString") {
-        selectableTypes = LineTypes;
+        selectableTypes = LineTypesMap;
     }
     if (feature?.geometry.type === "Polygon" || feature?.geometry.type === "MultiPolygon") {
-        selectableTypes = ZoneTypes;
+        selectableTypes = ZoneTypesMap;
     }
 
     const onTypeChange = useCallback((e: { target: { value: SetStateAction<string>; }; }) => {
         setKind(e.target.value);
         let t = selectableTypes && Object.values(selectableTypes).find(a => a.name === e.target.value);
-        if (t && t.icon) {
+        if (t && typeof t == IconType) {
             setIcon(t.icon?.name);
         }
         else {
             setIcon("");
         }
-        if (t && t.iconEnd) {
-            setIconEnd(t.iconEnd.name);
-        }
-        else {
-            setIconEnd(undefined);
-        }
+
     }, [setIcon, selectableTypes])
 
     return (
         <div>
             < h3 className='title is-size-5' > Eigenschaften</h3 >
-            {feature && feature.geometry.type === "Point" ?
-                <div className="field is-horizontal">
-                    <div className="field-label is-normal">
-                        <label className="label">Symbol</label>
-                    </div>
-                    <div className="field-body">
-                        <div className="field is-expanded">
-                            <div className="control">
-                                <div className="select">
-                                    <select onChange={e => setIcon(e.target.value)} value={icon}>
-                                        {Object.keys(IconGroups).map((group) => (
-                                            <optgroup label={group} key={group}>
-                                                {Object.values(IconGroups[group]).map((icon) => (
-                                                    <option key={icon.name} label={icon.description}>{icon.name}</option>
-                                                ))}
-                                            </optgroup>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        {feature && feature.geometry.type === "Point" &&
-                            < label className="checkbox">
-                                <input type="checkbox" onChange={e => e.currentTarget.checked ? setIconRotation(map.current?.getBearing()) : setIconRotation(undefined)} checked={iconRotation !== undefined} value={iconRotation} />
-                                Fixiert
-                            </label>}
-                    </div>
-                </div>
-                : <></>
+            {feature && feature.geometry.type === "Point" &&
+                <IconChooser feature={feature} map={map.current} />
             }
             <div className="field is-horizontal">
                 <div className="field-label is-normal">
@@ -166,15 +133,77 @@ function FeatureDetail(props: { onUpdate: (e: any) => void, feature: Feature | u
     )
 }
 
-interface TypesType {
+interface ChooserProps {
+    feature: Feature<Geometry, GeoJsonProperties>;
+    map: MapRef | undefined;
+}
+
+function IconChooser(props: ChooserProps) {
+    const draw = useDraw();
+    const dispatch = useDrawDispatch();
+
+    const { feature, map } = props;
+    const [icon, setIcon] = useState<string | undefined>(feature && feature.properties?.icon);
+    const [iconRotation, setIconRotation] = useState<number | undefined>(feature && feature.properties?.iconRotation);
+
+    if (draw.selectedFeature === undefined || dispatch === null) {
+        return
+    }
+
+    return (
+        <>
+            <div className="field is-horizontal">
+                <div className="field-label is-normal">
+                    <label className="label">Symbol</label>
+                </div >
+                <div className="field-body">
+                    <div className="field is-expanded">
+                        <div className="control">
+                            <div className="select">
+                                <select onChange={e => dispatch({ action: 'feature/change', feature: { feature } }) value={icon} >
+                                    {Object.keys(IconGroups).map((group) => (
+                                        <optgroup label={group} key={group}>
+                                            {Object.values(IconGroups[group]).map((icon) => (
+                                                <option key={icon.name} label={icon.description}>{icon.name}</option>
+                                            ))}
+                                        </optgroup>
+                                    ))}
+                                </select>
+                            </div >
+
+                        </div>
+                    </div>
+                </div>
+                < label className="checkbox">
+                    <input type="checkbox" onChange={e => e.currentTarget.checked ? setIconRotation(map?.getBearing()) : setIconRotation(undefined)} checked={iconRotation !== undefined} value={iconRotation} />
+                    Fixiert
+                </label>
+            </div >
+        </>
+    )
+
+}
+
+type IconType = {
     name: string;
     description: string;
     color?: string;
     icon?: BabsIcon;
-    iconEnd?: BabsIcon;
 }
 
-interface SelectableTypes { [key: string]: TypesType }
+type ZoneType = {
+    name: string;
+    description: string;
+    color?: string;
+}
+
+type LineType = {
+    name: string;
+    description: string;
+    color?: string;
+}
+
+interface SelectableTypes { [key: string]: IconType | ZoneType | LineType }
 
 const Colors = {
     Red: "#ff0000",
@@ -182,51 +211,65 @@ const Colors = {
     Black: '#000000',
 }
 
-const ZoneTypes: SelectableTypes = {
-    "Einsatzraum": { name: "Einsatzraum", description: "Einsatzraum", color: Colors.Blue },
-    "Schadengebiet": { name: "Schadengebiet", description: "Schadengebiet", color: Colors.Red },
-    "Brandzone": { name: "Brandzone", description: "Brandzone", color: Colors.Red },
+const ZoneTypesMap: SelectableTypes = {
+    "Einsatzraum": {
+        name: "Einsatzraum",
+        description: "Einsatzraum",
+        color: Colors.Blue
+    },
+    "Schadengebiet": {
+        name: "Schadengebiet",
+        description: "Schadengebiet",
+        color: Colors.Red
+    },
+    "Brandzone": {
+        name: "Brandzone",
+        description: "Brandzone",
+        color: Colors.Red
+    },
     "Zerstoerung": {
-        name: "Zerstoerung", description: "Zerstörte, unpassierbare Zone", color: Colors.Red
+        name: "Zerstoerung",
+        description: "Zerstörte, unpassierbare Zone",
+        color: Colors.Red
     },
 };
 
-const LineTypes: SelectableTypes = {
+const LineTypesMap: SelectableTypes = {
     "Rutschgebiet": {
-        name: "Rutschgebiet", description: "Rutschgebiet", color: Colors.Red, icon: undefined,
+        name: "Rutschgebiet", description: "Rutschgebiet", color: Colors.Red,
     },
     "RutschgebietGespiegelt": {
-        name: "RutschgebietGespiegelt", description: "Rutschgebiet (umgekehrt)", color: Colors.Red, icon: undefined,
+        name: "RutschgebietGespiegelt", description: "Rutschgebiet (umgekehrt)", color: Colors.Red,
     },
     "begehbar": {
-        name: "begehbar", description: "Strasse erschwert befahrbar / begehbar", color: Colors.Red, icon: Schaeden.Beschaedigung, iconEnd: Schaeden.Beschaedigung,
+        name: "begehbar", description: "Strasse erschwert befahrbar / begehbar", color: Colors.Red,
     },
     "schwerBegehbar": {
-        name: "schwerBegehbar", description: "Strasse nicht befahrbar / schwer Begehbar", color: Colors.Red, icon: Schaeden.Teilzerstoerung, iconEnd: Schaeden.Teilzerstoerung,
+        name: "schwerBegehbar", description: "Strasse nicht befahrbar / schwer Begehbar", color: Colors.Red,
     },
     "unpassierbar": {
-        name: "unpassierbar", description: "Strasse unpassierbar / gesperrt", color: Colors.Red, icon: Schaeden.Totalzerstoerung, iconEnd: Schaeden.Totalzerstoerung,
+        name: "unpassierbar", description: "Strasse unpassierbar / gesperrt", color: Colors.Red,
     },
     "beabsichtigteErkundung": {
-        name: "beabsichtigteErkundung", description: "Beabsichtigte Erkundung", color: Colors.Blue, icon: Others.Verschiebung,
+        name: "beabsichtigteErkundung", description: "Beabsichtigte Erkundung", color: Colors.Blue,
     },
     "durchgeführteErkundung": {
-        name: "durchgeführteErkundung", description: "Durchgeführte Erkundung", color: Colors.Blue, icon: Others.Verschiebung,
+        name: "durchgeführteErkundung", description: "Durchgeführte Erkundung", color: Colors.Blue,
     },
     "beabsichtigteVerschiebung": {
-        name: "beabsichtigteVerschiebung", description: "Beabsichtigte Verschiebung", color: Colors.Blue, icon: Others.Verschiebung,
+        name: "beabsichtigteVerschiebung", description: "Beabsichtigte Verschiebung", color: Colors.Blue,
     },
     "rettungsAchse": {
-        name: "rettungsAchse", description: "Rettungs Achse", color: Colors.Blue, icon: Others.Verschiebung,
+        name: "rettungsAchse", description: "Rettungs Achse", color: Colors.Blue,
     },
     "durchgeführteVerschiebung": {
-        name: "durchgeführteVerschiebung", description: "Durchgeführte Verschiebung", color: Colors.Blue, icon: Others.Verschiebung,
+        name: "durchgeführteVerschiebung", description: "Durchgeführte Verschiebung", color: Colors.Blue,
     },
     "beabsichtigterEinsatz": {
-        name: "beabsichtigterEinsatz", description: "Beabsichtigter Einsatz", color: Colors.Blue, icon: Others.Einsatz,
+        name: "beabsichtigterEinsatz", description: "Beabsichtigter Einsatz", color: Colors.Blue,
     },
     "durchgeführterEinsatz": {
-        name: "durchgeführterEinsatz", description: "Durchgeführter Einsatz", color: Colors.Blue, icon: Others.Einsatz,
+        name: "durchgeführterEinsatz", description: "Durchgeführter Einsatz", color: Colors.Blue,
     },
 };
 

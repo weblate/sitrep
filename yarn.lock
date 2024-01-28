@@ -8366,6 +8366,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"immer@npm:^10.0.3":
+  version: 10.0.3
+  resolution: "immer@npm:10.0.3"
+  checksum: 76acabe6f40e752028313762ba477a5d901e57b669f3b8fb406b87b9bb9b14e663a6fbbf5a6d1ab323737dd38f4b2494a4e28002045b88948da8dbf482309f28
+  languageName: node
+  linkType: hard
+
 "immer@npm:^9.0.7":
   version: 9.0.16
   resolution: "immer@npm:9.0.16"
@@ -13683,6 +13690,7 @@ __metadata:
     husky: ^8.0.3
     i18next: ^23.7.19
     i18next-browser-languagedetector: ^7.2.0
+    immer: ^10.0.3
     lint-staged: ^15.2.0
     lodash: ^4.17.21
     mapbox-gl-style-switcher: ^1.0.11
@@ -13700,6 +13708,7 @@ __metadata:
     sass: ^1.70.0
     source-map-explorer: ^2.5.3
     typescript: ^4.9.5
+    ulid: ^2.3.0
     usehooks-ts: ^2.10.0
     web-vitals: ^3.5.1
   languageName: unknown
@@ -14775,6 +14784,15 @@ __metadata:
   dependencies:
     typewise-core: ^1.2.0
   checksum: eb3452b1387df8bf8e3b620720d240425a50ce402d7c064c21ac4b5d88c551ee4d1f26cd649b8a17a6d06f7a3675733de841723f8e06bb3edabfeacc4924af4a
+  languageName: node
+  linkType: hard
+
+"ulid@npm:^2.3.0":
+  version: 2.3.0
+  resolution: "ulid@npm:2.3.0"
+  bin:
+    ulid: ./bin/cli.js
+  checksum: d6dbf253fdc189f60fe2829d934ee5447b3dab62d05449a2e0fe89670d77087dd6eba4f844a69f9ffdb01384ec6fd97bdd9be638fc67d593569a45e8969f1e69
   languageName: node
   linkType: hard
 
