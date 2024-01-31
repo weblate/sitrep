@@ -1,0 +1,52 @@
+table:
+  name: features
+  schema: public
+object_relationships:
+  - name: layer
+    using:
+      foreign_key_constraint_on: layer_id
+insert_permissions:
+  - role: editor
+    permission:
+      check: {}
+      columns:
+        - created_at
+        - geometry
+        - id
+        - layer_id
+        - properties
+select_permissions:
+  - role: editor
+    permission:
+      columns:
+        - created_at
+        - deleted_at
+        - geometry
+        - id
+        - layer_id
+        - properties
+        - updated_at
+      filter: {}
+  - role: viewer
+    permission:
+      columns:
+        - created_at
+        - deleted_at
+        - geometry
+        - id
+        - layer_id
+        - properties
+        - updated_at
+      filter: {}
+update_permissions:
+  - role: editor
+    permission:
+      columns:
+        - created_at
+        - deleted_at
+        - geometry
+        - id
+        - properties
+        - updated_at
+      filter: {}
+      check: null
